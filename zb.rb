@@ -61,20 +61,24 @@ end
 
 
 
-titles = (Marshal.read File.binread 'zb-marshal' rescue list_of_titles())
+titles, queue = *(Marshal.read File.binread 'zb-marshal' rescue [list_of_titles(), []])
 
 while true
-	sleep 3*60
-	
 	new_titles = list_of_titles()
 	user_notif_sett = get_user_notification_settings()
 	
 	all_cats = user_notif_sett.map{|a| a[1]}.flatten.uniq
 	
+	queue += (new_titles-titles)
 	
-	puts "Tick. %d total reports, %d new, %d users." % [new_titles.length, (new_titles-titles).length, user_notif_sett.length]
+	puts "Tick. %d total reports, %d new, %d users, %d queued." %
+		[new_titles.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
+	\
 	
-	title_cats = (new_titles-titles).map{|title|
+	title = queue.shift
+	title = queue.shift while title && !new_titles.include?(title)
+	
+	if title
 		p = Page.new title
 		out = []
 		if p.pageid and p.pageid!=-1
@@ -85,32 +89,35 @@ while true
 				out += categories.select{|c| all_cats.include? c}
 			end
 		end
-		
-		[title, out.uniq]
-	}
-	
-	
-	user_notif = {}
-	
-	title_cats.each do |title, cats|
-		user_notif_sett.each do |user, wanted_cats|
-			intersect = cats & wanted_cats
 			
-			if !intersect.empty?
-				user_notif[user] ||= []
-				user_notif[user] << [title, intersect]
+		title_cats = [[title, out.uniq]]
+		
+		
+		user_notif = {}
+		
+		title_cats.each do |title, cats|
+			user_notif_sett.each do |user, wanted_cats|
+				intersect = cats & wanted_cats
+				
+				if !intersect.empty?
+					user_notif[user] ||= []
+					user_notif[user] << [title, intersect]
+				end
 			end
+		end
+		
+		user_notif.each do |user, articles|
+			puts "Notifying #{user} about #{articles.map{|a| a[0]}.join(', ')}."
+			notify_user_zb user, articles
 		end
 	end
 	
-	user_notif.each do |user, articles|
-		puts "Notifying #{user} about #{articles.map{|a| a[0]}.join(', ')}."
-		notify_user_zb user, articles
-	end
 	
 	titles = new_titles
 	
-	File.binwrite 'zb-marshal', Marshal.dump(titles)
+	File.binwrite 'zb-marshal', Marshal.dump([titles, queue])
+	
+	sleep 3*60
 end
 
 
