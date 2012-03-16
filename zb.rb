@@ -3,8 +3,11 @@ require 'sunflower'
 require 'pp'
 require 'io/console'
 
-puts 'Input password:'
+$stdout.sync = $stderr.sync = true
+
+$stderr.puts 'Input password:'
 $s = s = Sunflower.new('pl.wikipedia.org').login('MatmaBot', STDIN.noecho(&:gets).strip)
+
 
 s.summary = 'powiadomienie o nowych wpisach na Zgłoś błąd (test)'
 
