@@ -71,7 +71,7 @@ while true
 	
 	queue += (new_titles-titles)
 	
-	puts "Tick. %d total reports, %d new, %d users, %d queued." %
+	puts "#{Time.now}. %d total reports, %d new, %d users, %d queued." %
 		[new_titles.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
 	\
 	
