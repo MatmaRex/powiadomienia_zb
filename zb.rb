@@ -21,8 +21,13 @@ def list_of_titles
 	text.scan(/===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/).flatten.map{|a| a.strip}.uniq
 end
 
-def notify_user_zb username, articles
-	p = Page.new "User talk:#{username}"
+def notify_user_zb ns, page, articles
+	ns_to_talk = {
+		'Wikipedysta' => 'Dyskusja wikipedysty',
+		'Wikiprojekt' => 'Dyskusja Wikiprojektu',
+	}
+	
+	p = Page.new "#{ns_to_talk[ns]}:#{page}"
 	
 	header = "== Nowy wpis na Zgłoś błąd =="
 	add_header = p.text.scan(/==[^\n]+==/)[-1] != header # jesli ostatni naglowek jest nasz, nie powtarzamy go
@@ -52,12 +57,14 @@ end
 
 def get_user_notification_settings
 	list = $s.make_list 'linkson', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
-	users = list.select{|a| a.start_with? 'Wikipedysta:' and !a.include? '/'}.reject{|a| a=='Wikipedysta:Przykładowy użytkownik'}
+	list -= ['Wikipedysta:Przykładowy użytkownik']
+	
+	users = list.select{|a| (a.start_with? 'Wikipedysta:' or a.start_with? 'Wikiprojekt:') and !a.include? '/'}
 	
 	users.map{|u| 
 		cats = Page.new(u + "/ZB_config.js").text.strip.split("\n")
 		cats = cats.map{|c| c.start_with?('Kategoria:') ? c : 'Kategoria:'+c}
-		[u.sub(/^Wikipedysta:/, ''), cats]
+		[*u.split(':', 2), cats]
 	}
 end
 
@@ -70,7 +77,7 @@ while true
 	new_titles = list_of_titles()
 	user_notif_sett = get_user_notification_settings()
 	
-	all_cats = user_notif_sett.map{|a| a[1]}.flatten.uniq
+	all_cats = user_notif_sett.map{|a| a.last}.flatten.uniq
 	
 	queue += (new_titles-titles)
 	
@@ -99,19 +106,19 @@ while true
 		user_notif = {}
 		
 		title_cats.each do |title, cats|
-			user_notif_sett.each do |user, wanted_cats|
+			user_notif_sett.each do |ns, page, wanted_cats|
 				intersect = cats & wanted_cats
 				
 				if !intersect.empty?
-					user_notif[user] ||= []
-					user_notif[user] << [title, intersect]
+					user_notif[[ns, page]] ||= []
+					user_notif[[ns, page]] << [title, intersect]
 				end
 			end
 		end
 		
-		user_notif.each do |user, articles|
-			puts "Notifying #{user} about #{articles.map{|a| a[0]}.join(', ')}."
-			notify_user_zb user, articles
+		user_notif.each do |(ns, page), articles|
+			puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
+			notify_user_zb ns, page, articles
 		end
 	end
 	
