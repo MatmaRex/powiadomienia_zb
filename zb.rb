@@ -11,6 +11,9 @@ $s = s = Sunflower.new('pl.wikipedia.org').login('MatmaBot', STDIN.noecho(&:gets
 
 s.summary = 'powiadomienie o nowych wpisach na Zgłoś błąd (test)'
 
+# Gets list of all titles of articles with errors reported.
+# 
+# Ignores incorrectly formatted sections.
 def list_of_titles
 	p = Page.new 'Wikipedia:Zgłoś błąd w artykule'
 
@@ -21,6 +24,9 @@ def list_of_titles
 	text.scan(/===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/).flatten.map{|a| a.strip}.uniq
 end
 
+# Notifies user / wikiproject about error report in articles.
+# 
+# articles is array of [title, [categories...]]
 def notify_user_zb ns, page, articles
 	ns_to_talk = {
 		'Wikipedysta' => 'Dyskusja wikipedysty',
@@ -55,6 +61,9 @@ def notify_user_zb ns, page, articles
 	p.save
 end
 
+# Returns an array of user/wikiproject notification settings.
+# 
+# Returns format: array of [ namespace, title, [categories...] ]
 def get_user_notification_settings
 	list = $s.make_list 'linkson', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
 	list -= ['Wikipedysta:Przykładowy użytkownik']
