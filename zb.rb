@@ -68,7 +68,12 @@ def get_user_notification_settings
 	list = $s.make_list 'linkson', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
 	list -= ['Wikipedysta:Przykładowy użytkownik']
 	
-	users = list.select{|a| (a.start_with? 'Wikipedysta:' or a.start_with? 'Wikiprojekt:') and !a.include? '/'}
+	users = list.select{|a|
+		# linki do wikipedystów, ale nie do podstron
+		(a.start_with? 'Wikipedysta:' and !a.include? '/') or
+		# linki do wikiprojektów, zezwalamy na podstrony
+		(a.start_with? 'Wikiprojekt:')
+	}
 	
 	users.map{|u| 
 		cats = Page.new(u + "/ZB_config.js").text.strip.split("\n")
