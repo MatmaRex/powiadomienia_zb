@@ -88,8 +88,17 @@ end
 titles, queue = *(Marshal.read File.binread 'zb-marshal' rescue [list_of_titles(), []])
 
 while true
-	new_titles = list_of_titles()
-	user_notif_sett = get_user_notification_settings()
+	begin
+		new_titles = user_notif_sett = nil
+		
+		Timeout::timeout 60 do
+			new_titles = list_of_titles()
+			user_notif_sett = get_user_notification_settings()
+		end
+	rescue Timeout::Error
+		puts "Timed out while downloading list of titles or user settings; retrying..."
+		retry
+	end
 	
 	all_cats = user_notif_sett.map{|a| a.last}.flatten.uniq
 	
@@ -103,15 +112,23 @@ while true
 	title = queue.shift while title && !new_titles.include?(title)
 	
 	if title
-		p = Page.new title
-		out = []
-		if p.pageid and p.pageid!=-1
-			categories = [title]
-			until categories.empty?
-				res = s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape categories.join('|'))
-				categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
-				out += categories.select{|c| all_cats.include? c}
+		begin
+			out = []
+			
+			Timeout::timeout 60 do
+				p = Page.new title
+				if p.pageid and p.pageid!=-1
+					categories = [title]
+					until categories.empty?
+						res = s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape categories.join('|'))
+						categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
+						out += categories.select{|c| all_cats.include? c}
+					end
+				end
 			end
+		rescue Timeout::Error
+			puts "Timed out while listing categories for #{title}; retrying..."
+			retry
 		end
 			
 		title_cats = [[title, out.uniq]]
@@ -130,9 +147,17 @@ while true
 			end
 		end
 		
+		
 		user_notif.each do |(ns, page), articles|
-			puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
-			notify_user_zb ns, page, articles
+			begin
+				Timeout::timeout 15 do
+					puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
+					notify_user_zb ns, page, articles
+				end
+			rescue Timeout::Error
+				puts "Timed out; retrying..."
+				retry
+			end
 		end
 	end
 	
