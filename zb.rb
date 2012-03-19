@@ -71,6 +71,7 @@ def get_user_notification_settings
 	users = list.select{|a|
 		# linki do wikipedystów, ale nie do podstron
 		(a.start_with? 'Wikipedysta:' and !a.include? '/') or
+		(a.start_with? 'Wikipedystka:' and !a.include? '/') or
 		# linki do wikiprojektów, zezwalamy na podstrony
 		(a.start_with? 'Wikiprojekt:')
 	}
