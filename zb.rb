@@ -77,7 +77,7 @@ def get_user_notification_settings
 	}
 	
 	users.map{|u| 
-		cats = Page.new(u + "/ZB_config.js").text.strip.split("\n")
+		cats = Page.new(u + "/ZB_config.js").text.strip.gsub(/\uFEFF|\u200E|\u200B/, '').split("\n")
 		cats = cats.map{|c| c.start_with?('Kategoria:') ? c : 'Kategoria:'+c}
 		[*u.split(':', 2), cats]
 	}
