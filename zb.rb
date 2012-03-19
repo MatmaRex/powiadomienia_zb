@@ -85,7 +85,7 @@ end
 
 
 
-titles, queue = *(Marshal.read File.binread 'zb-marshal' rescue [list_of_titles(), []])
+titles, queue = *(Marshal.load File.binread 'zb-marshal' rescue [list_of_titles(), []])
 
 while true
 	begin
