@@ -119,10 +119,15 @@ while true
 				p = Page.new title
 				if p.pageid and p.pageid!=-1
 					categories = [title]
+					already = []
+					
 					until categories.empty?
 						res = s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape categories.join('|'))
 						categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
+						categories -= already
+						
 						out += categories.select{|c| all_cats.include? c}
+						already += categories; already.uniq!
 					end
 				end
 			end
@@ -130,7 +135,7 @@ while true
 			puts "Timed out while listing categories for #{title}; retrying..."
 			retry
 		end
-			
+		
 		title_cats = [[title, out.uniq]]
 		
 		
