@@ -91,7 +91,7 @@ while true
 	begin
 		new_titles = user_notif_sett = nil
 		
-		Timeout::timeout 60 do
+		Timeout::timeout 60*5 do
 			new_titles = list_of_titles()
 			user_notif_sett = get_user_notification_settings()
 		end
@@ -115,7 +115,7 @@ while true
 		begin
 			out = []
 			
-			Timeout::timeout 60 do
+			Timeout::timeout 60*5 do
 				p = Page.new title
 				if p.pageid and p.pageid!=-1
 					categories = [title]
@@ -150,7 +150,7 @@ while true
 		
 		user_notif.each do |(ns, page), articles|
 			begin
-				Timeout::timeout 15 do
+				Timeout::timeout 60*5 do
 					puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
 					notify_user_zb ns, page, articles
 				end
