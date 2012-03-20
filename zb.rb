@@ -16,6 +16,7 @@ s.summary = 'powiadomienie o nowych wpisach na Zgłoś błąd (test)'
 # Ignores incorrectly formatted sections.
 def list_of_titles
 	p = Page.new 'Wikipedia:Zgłoś błąd w artykule'
+	p.code_cleanup # fixes links containing percent-encoding
 
 	text = p.text
 	text =~ /== Błędy w plikach ==/
