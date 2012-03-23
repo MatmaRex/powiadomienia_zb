@@ -87,7 +87,7 @@ end
 
 
 
-titles, queue = *(Marshal.load File.binread 'zb-marshal' rescue [list_of_titles(), []])
+titles, queue, last_seen = *(Marshal.load File.binread 'zb-marshal' rescue [list_of_titles(), [], {}])
 
 while true
 	begin
@@ -104,10 +104,15 @@ while true
 	
 	all_cats = user_notif_sett.map{|a| a.last}.flatten.uniq
 	
+	
+	new_titles.each do |t|
+		last_seen[t] = Time.now
+	end
+	
 	queue += (new_titles-titles)
 	
-	puts "#{Time.now}. %d total reports, %d new, %d users, %d queued." %
-		[new_titles.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
+	puts "#{Time.now}. %d total reports, %d tracked, %d new, %d users, %d queued." %
+		[new_titles.length, last_seen.keys.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
 	\
 	
 	title = queue.shift
@@ -169,9 +174,12 @@ while true
 	end
 	
 	
-	titles = new_titles
+	# polacz listy, usun wpisy starsze niz 24h
+	titles = (titles+new_titles).uniq
+	titles.delete_if{|t| last_seen[t] < Time.now-60*60*24 }
+	last_seen.delete_if{|k,v| !titles.include?(k) }
 	
-	File.binwrite 'zb-marshal', Marshal.dump([titles, queue])
+	File.binwrite 'zb-marshal', Marshal.dump([titles, queue, last_seen])
 	
 	sleep 3*60
 end
