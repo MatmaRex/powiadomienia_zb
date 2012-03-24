@@ -97,7 +97,7 @@ while true
 			new_titles = list_of_titles()
 			user_notif_sett = get_user_notification_settings()
 		end
-	rescue Timeout::Error, Errno::ETIMEDOUT
+	rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
 		puts "Timed out while downloading list of titles or user settings; retrying..."
 		retry
 	end
@@ -138,7 +138,7 @@ while true
 					end
 				end
 			end
-		rescue Timeout::Error, Errno::ETIMEDOUT
+		rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
 			puts "Timed out while listing categories for #{title}; retrying..."
 			retry
 		end
@@ -166,7 +166,7 @@ while true
 					puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
 					notify_user_zb ns, page, articles
 				end
-			rescue Timeout::Error, Errno::ETIMEDOUT
+			rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
 				puts "Timed out; retrying..."
 				retry
 			end
