@@ -31,6 +31,7 @@ end
 def notify_user_zb ns, page, articles
 	ns_to_talk = {
 		'Wikipedysta' => 'Dyskusja wikipedysty',
+		'Wikipedystka' => 'Dyskusja wikipedysty',
 		'Wikiprojekt' => 'Dyskusja Wikiprojektu',
 	}
 	
