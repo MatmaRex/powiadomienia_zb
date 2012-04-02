@@ -6,10 +6,9 @@ require 'io/console'
 $stdout.sync = $stderr.sync = true
 
 $stderr.puts 'Input password:'
-$s = s = Sunflower.new('pl.wikipedia.org').login('MatmaBot', STDIN.noecho(&:gets).strip)
+$s = s = Sunflower.new('pl.wikipedia.org').login('Powiadomienia ZB', STDIN.noecho(&:gets).strip)
 
 
-s.summary = 'powiadomienie o nowych wpisach na Zgłoś błąd (test)'
 
 # Gets list of all titles of articles with errors reported.
 # 
@@ -40,7 +39,7 @@ def notify_user_zb ns, page, articles
 	header = "== Nowy wpis na Zgłoś błąd =="
 	add_header = p.text.scan(/==[^\n]+==/)[-1] != header # jesli ostatni naglowek jest nasz, nie powtarzamy go
 	
-	signature = "[[Wikipedysta:MatmaBot|MatmaBot]] ([[Wikipedia:Zgłoś błąd w artykule/Powiadomienia|informacje]]) ~~"+"~~"+"~"
+	signature = "[[Wikipedysta:Powiadomienia ZB|Powiadomienia ZB]] ([[Wikipedia:Zgłoś błąd w artykule/Powiadomienia|informacje]]) ~~"+"~~"+"~"
 	
 	lines = []
 	articles.each do |title, cats|
@@ -60,7 +59,8 @@ def notify_user_zb ns, page, articles
 	p.text += lines.join("\n\n")
 	p.text += " "+signature
 	
-	p.save
+	summary_links = articles.map{|t,c| "[[Wikipedia:Zgłoś błąd w artykule##{t}|#{t}]]" }.join(', ')
+	p.save p.title, "powiadomienie o nowych wpisach na Zgłoś błąd – #{summary_links}"
 end
 
 # Returns an array of user/wikiproject notification settings.
