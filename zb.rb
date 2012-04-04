@@ -3,13 +3,6 @@ require 'sunflower'
 require 'pp'
 require 'io/console'
 
-$stdout.sync = $stderr.sync = true
-
-$stderr.puts 'Input password:'
-$s = s = Sunflower.new('pl.wikipedia.org').login('Powiadomienia ZB', STDIN.noecho(&:gets).strip)
-
-
-
 # Gets list of all titles of articles with errors reported.
 # 
 # Ignores incorrectly formatted sections.
@@ -157,85 +150,91 @@ end
 
 
 
-titles, queue, last_seen = *(Marshal.load File.binread 'zb-marshal' rescue [list_of_titles(), [], {}])
+if $0 == __FILE__
+	$stdout.sync = $stderr.sync = true
+	
+	$stderr.puts 'Input password:'
+	$s = s = Sunflower.new('pl.wikipedia.org').login('Powiadomienia ZB', STDIN.noecho(&:gets).strip)
 
-while true
-	begin
-		new_titles = user_notif_sett = nil
-		
-		Timeout::timeout 60*5 do
-			new_titles = list_of_titles()
-			user_notif_sett = get_user_notification_settings()
+
+	titles, queue, last_seen = *(Marshal.load File.binread 'zb-marshal' rescue [list_of_titles(), [], {}])
+
+	while true
+		begin
+			new_titles = user_notif_sett = nil
+			
+			Timeout::timeout 60*5 do
+				new_titles = list_of_titles()
+				user_notif_sett = get_user_notification_settings()
+			end
+		rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
+			puts "Timed out while downloading list of titles or user settings; retrying..."
+			retry
 		end
-	rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
-		puts "Timed out while downloading list of titles or user settings; retrying..."
-		retry
-	end
-	
-	
-	new_titles.each do |t|
-		last_seen[t] = Time.now
-	end
-	
-	queue += (new_titles-titles)
-	
-	puts "#{Time.now}. %d total reports, %d tracked, %d new, %d users, %d queued." %
-		[new_titles.length, last_seen.keys.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
-	\
-	
-	title = queue.shift
-	title = queue.shift while title && !new_titles.include?(title)
-	
-	if title
-		cat_graph = upwards_category_graph title
 		
 		
-		user_notif = {}
+		new_titles.each do |t|
+			last_seen[t] = Time.now
+		end
 		
-		user_notif_sett.each do |ns, page, settings|
-			catch :stop do
-				cat_graph.walk do |cat|
-					if settings[:include_cats].include? cat
-						# add this title to this user's list; add the category to title's list
-						user_notif[[ns, page]] ||= {}
-						user_notif[[ns, page]][title] ||= []
-						user_notif[[ns, page]][title] << cat
-					elsif settings[:nofollow_cats].include? cat
-						# don't go further
-						throw :nofollow
-					elsif settings[:exclude_cats].include? cat
-						# remove this title from user's list, if it was already added; stop processing the graph
-						user_notif[[ns, page]].delete title if user_notif[[ns, page]]
-						throw :stop
+		queue += (new_titles-titles)
+		
+		puts "#{Time.now}. %d total reports, %d tracked, %d new, %d users, %d queued." %
+			[new_titles.length, last_seen.keys.length, (new_titles-titles).length, user_notif_sett.length, queue.length]
+		\
+		
+		title = queue.shift
+		title = queue.shift while title && !new_titles.include?(title)
+		
+		if title
+			cat_graph = upwards_category_graph title
+			
+			
+			user_notif = {}
+			
+			user_notif_sett.each do |ns, page, settings|
+				catch :stop do
+					cat_graph.walk do |cat|
+						if settings[:include_cats].include? cat
+							# add this title to this user's list; add the category to title's list
+							user_notif[[ns, page]] ||= {}
+							user_notif[[ns, page]][title] ||= []
+							user_notif[[ns, page]][title] << cat
+						elsif settings[:nofollow_cats].include? cat
+							# don't go further
+							throw :nofollow
+						elsif settings[:exclude_cats].include? cat
+							# remove this title from user's list, if it was already added; stop processing the graph
+							user_notif[[ns, page]].delete title if user_notif[[ns, page]]
+							throw :stop
+						end
 					end
 				end
 			end
-		end
-		
-		
-		user_notif.each do |(ns, page), articles_hash|
-			begin
-				Timeout::timeout 60*5 do
-					puts "Notifying #{ns}:#{page} about #{articles_hash.map{|a| a[0]}.join(', ')}."
-					notify_user_zb ns, page, articles_hash
+			
+			
+			user_notif.each do |(ns, page), articles_hash|
+				begin
+					Timeout::timeout 60*5 do
+						puts "Notifying #{ns}:#{page} about #{articles_hash.map{|a| a[0]}.join(', ')}."
+						notify_user_zb ns, page, articles_hash
+					end
+				rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
+					puts "Timed out; retrying..."
+					retry
 				end
-			rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
-				puts "Timed out; retrying..."
-				retry
 			end
 		end
+		
+		
+		# polacz listy, usun wpisy starsze niz 24h
+		titles = (titles+new_titles).uniq
+		titles.delete_if{|t| last_seen[t] < Time.now-60*60*24 }
+		last_seen.delete_if{|k,v| !titles.include?(k) }
+		
+		File.binwrite 'zb-marshal', Marshal.dump([titles, queue, last_seen])
+		
+		sleep 3*60
 	end
-	
-	
-	# polacz listy, usun wpisy starsze niz 24h
-	titles = (titles+new_titles).uniq
-	titles.delete_if{|t| last_seen[t] < Time.now-60*60*24 }
-	last_seen.delete_if{|k,v| !titles.include?(k) }
-	
-	File.binwrite 'zb-marshal', Marshal.dump([titles, queue, last_seen])
-	
-	sleep 3*60
 end
-
-
 
