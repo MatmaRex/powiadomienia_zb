@@ -101,11 +101,47 @@ def get_user_notification_settings
 	}
 end
 
+class Module
+	# Memoize a method with optional cache timeout and ignoring certain arguments.
+	def memoize meth, opts
+		time, which_args = opts[:time], opts[:args]
+		
+		aliased = :"_nomemo_#{meth}"
+		datastore = :"@_memo_for_#{meth}"
+		
+		if instance_methods.include? aliased
+			warn "trying to rememoize a method; stopping"
+			return
+		end
+		
+		alias_method aliased, meth
+		
+		define_method meth do |*args|
+			hh_args = which_args ? args.values_at(*which_args) : args
+			
+			instance_variable_set(datastore, {}) unless instance_variable_get(datastore)
+			hsh = instance_variable_get(datastore)
+			if hsh[hh_args] and (time ? hsh[hh_args][0] + time > Time.now : true)
+				# pass
+			else
+				# cache
+				hsh[hh_args] = [Time.now, send(aliased, *args)]
+			end
+			
+			hsh[hh_args][1]
+		end
+	end
+end
+
+
+module Kernel
 # Returns a tree of supercategories of given article or category. Gets rid of category cycles.
 # 
 # Tree and its subtrees have a #walk method, which allows you to traverse the entire graph in depth-first manner,
 # and takes a block, yielding category name.
 # Throwing :nofollow in #walk's block will stop traversing the branch and resume from the next one.
+# 
+# Memoized.
 # 
 # Format:
 # 
@@ -116,7 +152,7 @@ end
 # 			category3 => {subcat2 => {} },
 # 		}
 # 	}
-def upwards_category_graph root, already=[]
+def upwards_category_graph root, already=[root]
 	begin
 		graph = {}
 		Timeout::timeout 60*5 do
@@ -146,6 +182,11 @@ def upwards_category_graph root, already=[]
 	
 	graph
 end
+
+memoize :upwards_category_graph, time: 10*60, args: [0]
+end
+
+
 
 
 
