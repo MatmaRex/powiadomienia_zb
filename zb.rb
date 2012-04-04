@@ -65,7 +65,7 @@ end
 
 # Returns an array of user/wikiproject notification settings.
 # 
-# Returns format: array of [ namespace, title, [categories...] ]
+# Returns format: array of [ namespace, title, {settings} ]
 def get_user_notification_settings
 	list = $s.make_list 'linkson', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
 	list -= ['Wikipedysta:Przykładowy użytkownik']
@@ -78,11 +78,80 @@ def get_user_notification_settings
 		(a.start_with? 'Wikiprojekt:')
 	}
 	
+	# mapping of magic_character => category_type, used below
+	mappings = {
+		'!' => :exclude_cats,
+		'-' => :nofollow_cats,
+		'+' => :include_cats,
+		'' => :include_cats, # needed as default
+	}
+	
 	users.map{|u| 
 		cats = Page.new(u + "/ZB_config.js").text.strip.gsub(/\uFEFF|\u200E|\u200B/, '').split("\n")
-		cats = cats.map{|c| c.start_with?('Kategoria:') ? c : 'Kategoria:'+c}
-		[*u.split(':', 2), cats]
+		settings = {
+			:include_cats => [],
+			:exclude_cats => [],
+			:nofollow_cats => [],
+		}
+		cats.each do |c|
+			c.strip!
+			# parsing - check if the line starts with a special character, currently one of -+!, and strip it
+			# also find out what this character represents
+			type = mappings.find{|ch, t| c.sub!(/^#{Regexp.escape ch}/, '') }[-1]
+			c.strip!
+			# prepend 'Kategoria' if missing
+			c = c.start_with?('Kategoria:') ? c : 'Kategoria:'+c
+			
+			settings[type] << c
+		end
+		[*u.split(':', 2), settings]
 	}
+end
+
+# Returns a tree of supercategories of given article or category. Gets rid of category cycles.
+# 
+# Tree and its subtrees have a #walk method, which allows you to traverse the entire graph in depth-first manner,
+# and takes a block, yielding category name.
+# Throwing :nofollow in #walk's block will stop traversing the branch and resume from the next one.
+# 
+# Format:
+# 
+# 	{
+# 		root => {
+# 			category1 => {subcat1 => {...} },
+# 			category2 => {...},
+# 			category3 => {subcat2 => {} },
+# 		}
+# 	}
+def upwards_category_graph root, already=[]
+	begin
+		graph = {}
+		Timeout::timeout 60*5 do
+			# get a list of categories on this page/cat, exclude already found earlier in tree
+			res = $s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape root)
+			categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
+			categories -= already
+			
+			# add newly found to the list
+			already += categories; already.uniq!
+			
+			graph[root] = categories.map{|c| upwards_category_graph c, already}
+			def graph.walk &block
+				self.each do |k, v|
+					catch :nofollow do
+						block.call k
+						# not reached if block throws :nofollow
+						v.each{|g| g.walk &block}
+					end
+				end
+			end
+		end
+	rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
+		puts "Timed out while listing categories for #{root}; retrying..."
+		retry
+	end
+	
+	graph
 end
 
 
@@ -103,8 +172,6 @@ while true
 		retry
 	end
 	
-	all_cats = user_notif_sett.map{|a| a.last}.flatten.uniq
-	
 	
 	new_titles.each do |t|
 		last_seen[t] = Time.now
@@ -120,52 +187,37 @@ while true
 	title = queue.shift while title && !new_titles.include?(title)
 	
 	if title
-		begin
-			out = []
-			
-			Timeout::timeout 60*5 do
-				p = Page.new title
-				if p.pageid and p.pageid!=-1
-					categories = [title]
-					already = []
-					
-					until categories.empty?
-						res = s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape categories.join('|'))
-						categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
-						categories -= already
-						
-						out += categories.select{|c| all_cats.include? c}
-						already += categories; already.uniq!
-					end
-				end
-			end
-		rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
-			puts "Timed out while listing categories for #{title}; retrying..."
-			retry
-		end
-		
-		title_cats = [[title, out.uniq]]
+		cat_graph = upwards_category_graph title
 		
 		
 		user_notif = {}
 		
-		title_cats.each do |title, cats|
-			user_notif_sett.each do |ns, page, wanted_cats|
-				intersect = cats & wanted_cats
-				
-				if !intersect.empty?
-					user_notif[[ns, page]] ||= []
-					user_notif[[ns, page]] << [title, intersect]
+		user_notif_sett.each do |ns, page, settings|
+			catch :stop do
+				cat_graph.walk do |cat|
+					if settings[:include_cats].include? cat
+						# add this title to this user's list; add the category to title's list
+						user_notif[[ns, page]] ||= {}
+						user_notif[[ns, page]][title] ||= []
+						user_notif[[ns, page]][title] << cat
+					elsif settings[:nofollow_cats].include? cat
+						# don't go further
+						throw :nofollow
+					elsif settings[:exclude_cats].include? cat
+						# remove this title from user's list, if it was already added; stop processing the graph
+						user_notif[[ns, page]].delete title if user_notif[[ns, page]]
+						throw :stop
+					end
 				end
 			end
 		end
 		
 		
-		user_notif.each do |(ns, page), articles|
+		user_notif.each do |(ns, page), articles_hash|
 			begin
 				Timeout::timeout 60*5 do
-					puts "Notifying #{ns}:#{page} about #{articles.map{|a| a[0]}.join(', ')}."
-					notify_user_zb ns, page, articles
+					puts "Notifying #{ns}:#{page} about #{articles_hash.map{|a| a[0]}.join(', ')}."
+					notify_user_zb ns, page, articles_hash
 				end
 			rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestTimeout
 				puts "Timed out; retrying..."
