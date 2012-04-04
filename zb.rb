@@ -21,7 +21,7 @@ def list_of_titles
 	text =~ /== Błędy w plikach ==/
 	text = $`||text
 
-	text.scan(/===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/).flatten.map{|a| a.strip}.uniq
+	text.scan(/===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/).flatten.map{|a| a.strip.sub(/#.+/, '')}.uniq
 end
 
 # Notifies user / wikiproject about error report in articles.
