@@ -240,7 +240,7 @@ if $0 == __FILE__
 							# add this title to this user's list; add the category to title's list
 							user_notif[[ns, page]] ||= {}
 							user_notif[[ns, page]][title] ||= []
-							user_notif[[ns, page]][title] << cat
+							user_notif[[ns, page]][title] << cat unless user_notif[[ns, page]][title].include? cat
 						elsif settings[:nofollow_cats].include? cat
 							# don't go further
 							throw :nofollow
