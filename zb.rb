@@ -175,7 +175,7 @@ def upwards_category_graph root, already=[root]
 				end
 			end
 		end
-	rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed
+	rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed, SocketError
 		puts "Timed out while listing categories for #{root}; retrying..."
 		retry
 	end
@@ -208,7 +208,7 @@ if $0 == __FILE__
 				new_titles = list_of_titles()
 				user_notif_sett = get_user_notification_settings()
 			end
-		rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed
+		rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed, SocketError
 			puts "Timed out while downloading list of titles or user settings; retrying..."
 			retry
 		end
@@ -260,7 +260,7 @@ if $0 == __FILE__
 						puts "Notifying #{ns}:#{page} about #{articles_hash.map{|a| a[0]}.join(', ')}."
 						notify_user_zb ns, page, articles_hash
 					end
-				rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed
+				rescue Timeout::Error, Errno::ETIMEDOUT, RestClient::RequestFailed, SocketError
 					puts "Timed out; retrying..."
 					retry
 				end
