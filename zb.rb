@@ -37,7 +37,7 @@ def notify_user_zb ns, page, articles
 	lines = []
 	articles.each do |title, cats|
 		line = [
-			"Zgłoszono błąd w artykule [[#{title}]]",
+			"Zgłoszono błąd w artykule [[:#{title}]]",
 			"(kategori#{cats.length>1 ? 'e' : 'a'}: #{cats.map{|c| "[[:#{c}|]]"}.join(", ") })",
 			"–",
 			"[[Wikipedia:Zgłoś błąd w artykule##{title}|zobacz wpis]]."
