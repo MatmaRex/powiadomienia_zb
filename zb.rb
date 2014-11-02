@@ -7,7 +7,7 @@ require 'io/console'
 # 
 # Ignores incorrectly formatted sections.
 def list_of_titles
-	p = Page.new 'Wikipedia:Zgłoś błąd w artykule'
+	p = $s.page 'Wikipedia:Zgłoś błąd w artykule'
 	p.code_cleanup # fixes links containing percent-encoding
 
 	text = p.text
@@ -278,4 +278,3 @@ if $0 == __FILE__
 		sleep 3*60
 	end
 end
-
