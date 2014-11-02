@@ -14,7 +14,7 @@ def list_of_titles
 	text =~ /== Błędy w plikach ==/
 	text = $`||text
 
-	text.scan(/===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/).flatten.map{|a| a.strip.sub(/#.+/, '')}.uniq
+	text.scan( /===\s*\[\[:?([^\n\]\|]+)\]\]\s*===/ ).flatten.map{|a| a.strip.sub(/#.+/, '')}.uniq
 end
 
 # Notifies user / wikiproject about error report in articles.
@@ -30,7 +30,7 @@ def notify_user_zb ns, page, articles
 	p = Page.new "#{ns_to_talk[ns]}:#{page}"
 	
 	header = "== Nowy wpis na Zgłoś błąd =="
-	add_header = p.text.scan(/==[^\n]+==/)[-1] != header # jesli ostatni naglowek jest nasz, nie powtarzamy go
+	add_header = p.text.scan( /==[^\n]+==/ )[-1] != header # jesli ostatni naglowek jest nasz, nie powtarzamy go
 	
 	signature = "[[Wikipedysta:Powiadomienia ZB|Powiadomienia ZB]] ([[Wikipedia:Zgłoś błąd w artykule/Powiadomienia|informacje]]) ~~"+"~~"+"~"
 	
