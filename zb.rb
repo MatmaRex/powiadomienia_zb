@@ -60,7 +60,7 @@ end
 # 
 # Returns format: array of [ namespace, title, {settings} ]
 def get_user_notification_settings
-	list = $s.make_list 'linkson', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
+	list = $s.make_list 'links_on', 'Wikipedia:Zgłoś błąd w artykule/Powiadomienia'
 	list -= ['Wikipedysta:Przykładowy użytkownik']
 	
 	users = list.select{|a|
