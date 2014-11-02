@@ -27,7 +27,7 @@ def notify_user_zb ns, page, articles
 		'Wikiprojekt' => 'Dyskusja Wikiprojektu',
 	}
 	
-	p = Page.new "#{ns_to_talk[ns]}:#{page}"
+	p = $s.page "#{ns_to_talk[ns]}:#{page}"
 	
 	header = "== Nowy wpis na Zgłoś błąd =="
 	add_header = p.text.scan( /==[^\n]+==/ )[-1] != header # jesli ostatni naglowek jest nasz, nie powtarzamy go
@@ -80,7 +80,7 @@ def get_user_notification_settings
 	}
 	
 	users.map{|u| 
-		cats = Page.new(u + "/ZB_config.js").text.strip.gsub(/\uFEFF|\u200E|\u200B/, '').split("\n")
+		cats = $s.page(u + "/ZB_config.js").text.strip.gsub(/\uFEFF|\u200E|\u200B/, '').split("\n")
 		settings = {
 			:include_cats => [],
 			:exclude_cats => [],
