@@ -158,7 +158,7 @@ def upwards_category_graph root, already=[root]
 		Timeout::timeout 60*5 do
 			# get a list of categories on this page/cat, exclude already found earlier in tree
 			res = $s.API 'action=query&prop=categories&cllimit=max&titles='+(CGI.escape root)
-			categories = res['query']['pages'].map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
+			categories = (res['query']['pages'] || []).map{|k,v| (v['categories']||[]).map{|v| v['title']} }.flatten.uniq.compact
 			categories -= already
 			
 			# add newly found to the list
